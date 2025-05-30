@@ -1,13 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { ArrowLeft, TrendingUp, Target, Lightbulb, Award, ArrowRight, DollarSign } from "lucide-react"
+import { ArrowLeft, TrendingUp, TrendingDown, Target, Lightbulb, Award, ArrowRight, DollarSign, Calendar, CheckCircle } from "lucide-react"
 import { generateGrowthInsights, getGPProfile } from "@/lib/firebase"
+import { GlowCard } from "./glow-card"
+import { GlowButton } from "./glow-button"
 
 interface GrowthPlaybookProps {
   gpId: string
@@ -175,184 +177,449 @@ export default function GrowthPlaybook({ gpId, onBack, onActOnTip }: GrowthPlayb
       </div>
     )
   }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={onBack}>
+            <Button variant="ghost" size="sm" onClick={onBack} className="text-gray-300 hover:text-white hover:bg-slate-800">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-2xl font-bold text-gray-800">Growth Playbook</h1>
+            <h1 className="text-2xl font-bold text-white bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+              Growth Playbook
+            </h1>
           </div>
-          <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+          <Badge className="bg-purple-900/60 text-purple-300 border border-purple-500/50">
             {gpProfile?.name}
           </Badge>
         </div>
 
         <Tabs defaultValue="insights" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="insights">Insights</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
-            <TabsTrigger value="goals">Goals</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 bg-slate-800/50 border border-slate-700">
+            <TabsTrigger 
+              value="insights"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-400"
+            >
+              Insights
+            </TabsTrigger>
+            <TabsTrigger 
+              value="performance"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-400"
+            >
+              Performance
+            </TabsTrigger>
+            <TabsTrigger 
+              value="opportunities"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-400"
+            >
+              Opportunities
+            </TabsTrigger>
+            <TabsTrigger 
+              value="goals"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-400"
+            >
+              Goals
+            </TabsTrigger>
           </TabsList>
 
           {/* Insights Tab */}
           <TabsContent value="insights">
-            <div className="space-y-6">
-              <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+            <div className="space-y-6">              <GlowCard glowColor="blue" className="mb-6">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-white">
+                    <TrendingUp className="h-5 w-5 text-blue-400" />
                     Weekly Growth Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-blue-100">This Week</p>
-                      <p className="text-2xl font-bold">₹{gpProfile?.monthlyEarnings?.toLocaleString()}</p>
+                      <p className="text-blue-300">This Week</p>
+                      <p className="text-2xl font-bold text-white">₹{gpProfile?.monthlyEarnings?.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-blue-100">Growth Potential</p>
-                      <p className="text-2xl font-bold">₹5,000</p>
+                      <p className="text-blue-300">Growth Potential</p>
+                      <p className="text-2xl font-bold text-white">₹5,000</p>
                     </div>
                   </div>
                 </CardContent>
-              </Card>
-
+              </GlowCard>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {insights.map((insight, index) => (
-                  <Card key={index} className="hover:shadow-lg transition-shadow">
+                  <GlowCard 
+                    key={index} 
+                    glowColor={
+                      insight.type === "performance" ? "blue" :
+                      insight.type === "expansion" ? "green" : "orange"
+                    }
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
-                        {getInsightIcon(insight.type)}
-                        <CardTitle className="text-lg">{insight.title}</CardTitle>
+                        <div className={`p-2 rounded-lg ${
+                          insight.type === "performance" ? "bg-blue-900/30 border border-blue-500/30" :
+                          insight.type === "expansion" ? "bg-green-900/30 border border-green-500/30" : 
+                          "bg-orange-900/30 border border-orange-500/30"
+                        }`}>
+                          {getInsightIcon(insight.type)}
+                        </div>
+                        <CardTitle className="text-lg text-white">{insight.title}</CardTitle>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <p className="text-sm text-gray-600">{insight.description}</p>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-xs font-medium text-gray-700">Action:</p>
-                        <p className="text-sm">{insight.action}</p>
+                      <p className="text-sm text-gray-300">{insight.description}</p>
+                      
+                      <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Lightbulb className="h-3 w-3 text-amber-400" />
+                          <p className="text-xs font-medium text-gray-300">Recommended Action:</p>
+                        </div>
+                        <p className="text-sm font-medium text-gray-200">{insight.action}</p>
                       </div>
+                      
                       <div className="flex items-center justify-between">
-                        <span className="text-green-600 font-medium">{insight.potential}</span>
-                        <Button 
+                        <div>
+                          <span className="text-xs text-gray-400">Potential Impact</span>
+                          <p className="text-green-400 font-medium">{insight.potential}</p>
+                        </div>
+                        <GlowButton 
                           size="sm" 
                           onClick={() => onActOnTip(insight.type)}
                           className="h-8"
+                          glowColor={
+                            insight.type === "performance" ? "blue" :
+                            insight.type === "expansion" ? "green" : "orange"
+                          }
                         >
-                          Act Now
+                          Act On Tip
                           <ArrowRight className="h-3 w-3 ml-1" />
-                        </Button>
+                        </GlowButton>
                       </div>
                     </CardContent>
-                  </Card>
+                  </GlowCard>
                 ))}
               </div>
             </div>
-          </TabsContent>
-
-          {/* Performance Tab */}
+          </TabsContent>          {/* Performance Tab */}
           <TabsContent value="performance">
+            <GlowCard glowColor="blue" className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <TrendingUp className="h-5 w-5 text-blue-400" />
+                  Performance Analysis
+                </CardTitle>
+                <CardDescription className="text-gray-300">
+                  AI-powered analysis of your sales performance with personalized recommendations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-300 mb-4">
+                  Our intelligent system has analyzed your recent sales activity and identified key growth opportunities.
+                </p>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-gradient-to-b from-blue-900/40 to-purple-900/40 p-4 rounded-lg border border-blue-500/30">
+                    <p className="text-gray-300 text-xs mb-2">AI Confidence</p>
+                    <p className="text-2xl font-bold text-blue-300">94%</p>
+                  </div>
+                  <div className="bg-gradient-to-b from-green-900/40 to-emerald-900/40 p-4 rounded-lg border border-green-500/30">
+                    <p className="text-gray-300 text-xs mb-2">Growth Rate</p>
+                    <p className="text-2xl font-bold text-green-300">+32%</p>
+                  </div>
+                  <div className="bg-gradient-to-b from-purple-900/40 to-indigo-900/40 p-4 rounded-lg border border-purple-500/30">
+                    <p className="text-gray-300 text-xs mb-2">Analysis Points</p>
+                    <p className="text-2xl font-bold text-purple-300">14</p>
+                  </div>
+                </div>
+              </CardContent>
+            </GlowCard>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {performanceMetrics.map((metric, index) => (
-                <Card key={index}>
+                <GlowCard 
+                  key={index} 
+                  glowColor={
+                    index === 0 ? "green" : 
+                    index === 1 ? "blue" : 
+                    index === 2 ? "purple" : "orange"
+                  }
+                >
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">{metric.label}</CardTitle>
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${
+                        index === 0 ? "bg-green-900/30 border border-green-500/30" :
+                        index === 1 ? "bg-blue-900/30 border border-blue-500/30" : 
+                        index === 2 ? "bg-purple-900/30 border border-purple-500/30" : 
+                        "bg-orange-900/30 border border-orange-500/30"
+                      }`}>
+                        {index === 0 ? <DollarSign className="h-5 w-5 text-green-400" /> :
+                         index === 1 ? <TrendingUp className="h-5 w-5 text-blue-400" /> :
+                         index === 2 ? <Target className="h-5 w-5 text-purple-400" /> :
+                         <Award className="h-5 w-5 text-orange-400" />}
+                      </div>
+                      <CardTitle className="text-lg text-white">{metric.label}</CardTitle>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-end gap-2">
-                      <span className="text-2xl font-bold">
+                  <CardContent className="space-y-4">
+                    <div className="flex items-end gap-2 text-gray-100">
+                      <span className="text-3xl font-bold">
                         {formatValue(metric.value, metric.format)}
                       </span>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-400">
                         / {formatValue(metric.target, metric.format)}
                       </span>
                     </div>
                     <Progress 
                       value={(metric.value / metric.target) * 100} 
-                      className="h-2"
+                      className={`h-3 ${
+                        index === 0 ? "bg-green-950/50" :
+                        index === 1 ? "bg-blue-950/50" : 
+                        index === 2 ? "bg-purple-950/50" : 
+                        "bg-orange-950/50"
+                      }`}
                     />
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Progress</span>
-                      <span className={`flex items-center gap-1 ${metric.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        <TrendingUp className="h-3 w-3" />
-                        {metric.change > 0 ? '+' : ''}{metric.change}%
+                    <div className="flex items-center justify-between text-sm text-gray-300">
+                      <span>Progress to Target</span>
+                      <span className={`flex items-center gap-1 ${
+                        metric.change > 0 ? 'text-green-400' : 'text-red-400'
+                      } font-medium`}>
+                        {metric.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        {metric.change > 0 ? '+' : ''}{metric.change}% {metric.change > 0 ? 'growth' : 'decline'}
                       </span>
                     </div>
+                    
+                    <div className="pt-3 mt-3 border-t border-gray-800">
+                      <GlowButton 
+                        variant="outline" 
+                        className="w-full border border-gray-700 text-white hover:text-blue-300" 
+                        glowColor={
+                          index === 0 ? "green" : 
+                          index === 1 ? "blue" : 
+                          index === 2 ? "purple" : "orange"
+                        }
+                      >
+                        View Detailed Analysis
+                      </GlowButton>
+                    </div>
                   </CardContent>
-                </Card>
+                </GlowCard>
               ))}
             </div>
-          </TabsContent>
-
-          {/* Opportunities Tab */}
+          </TabsContent>          {/* Opportunities Tab */}
           <TabsContent value="opportunities">
-            <div className="space-y-4">
-              {categoryOpportunities.map((opportunity, index) => (
-                <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold">{opportunity.category}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{opportunity.description}</p>
-                        <div className="flex items-center gap-4 mt-3 text-sm">
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3 text-green-600" />
-                            <span className="font-medium">{opportunity.potential}</span>
-                          </div>
-                          <Badge variant={opportunity.demand === "High" ? "default" : "secondary"}>
-                            {opportunity.demand} Demand
-                          </Badge>
-                          <Badge variant="outline">
-                            {opportunity.difficulty}
-                          </Badge>
-                          <span className="text-gray-500">{opportunity.timeToStart}</span>
-                        </div>
-                      </div>
-                      <Button onClick={() => onActOnTip(opportunity.category.toLowerCase())}>
-                        Start Now
-                      </Button>
+            <div className="space-y-6">
+              <GlowCard glowColor="green" className="mb-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-white">
+                    <Target className="h-5 w-5 text-green-400" />
+                    Product Expansion Opportunities
+                  </CardTitle>
+                  <CardDescription className="text-gray-300">
+                    AI-identified high-potential product categories aligned with your skills and market
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-300 mb-4">
+                    Our AI analysis has identified these high-potential product categories based on your skills, customer base, and market trends.
+                  </p>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="bg-gradient-to-b from-green-900/40 to-emerald-900/40 p-4 rounded-lg border border-green-500/30">
+                      <p className="text-gray-300 text-xs mb-2">Potential Monthly</p>
+                      <p className="text-2xl font-bold text-green-300">₹9,500+</p>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Goals Tab */}
-          <TabsContent value="goals">
-            <Card>
-              <CardHeader>
-                <CardTitle>Weekly Goals</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {weeklyGoals.map((goal, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{goal.goal}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={goal.status === "completed" ? "default" : "secondary"}
-                        >
-                          {goal.status === "completed" ? "✓ Completed" : "In Progress"}
-                        </Badge>
-                        <span className="text-sm text-gray-600">{goal.reward}</span>
-                      </div>
+                    <div className="bg-gradient-to-b from-purple-900/40 to-indigo-900/40 p-4 rounded-lg border border-purple-500/30">
+                      <p className="text-gray-300 text-xs mb-2">AI Confidence</p>
+                      <p className="text-2xl font-bold text-purple-300">94%</p>
                     </div>
-                    <Progress value={goal.progress} className="h-2" />
-                    <div className="text-right text-sm text-gray-600">
-                      {goal.progress}% complete
+                    <div className="bg-gradient-to-b from-blue-900/40 to-cyan-900/40 p-4 rounded-lg border border-blue-500/30">
+                      <p className="text-gray-300 text-xs mb-2">Top Category</p>
+                      <p className="text-2xl font-bold text-blue-300">Mutual Funds</p>
                     </div>
                   </div>
+                </CardContent>
+              </GlowCard>
+              
+              <div className="space-y-4">
+                {categoryOpportunities.map((opportunity, index) => (
+                  <GlowCard 
+                    key={index} 
+                    glowColor={
+                      index === 0 ? "green" : 
+                      index === 1 ? "blue" : "purple"
+                    }
+                    className="hover:shadow-lg transition-shadow"
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`p-2 rounded-lg ${
+                              index === 0 ? "bg-green-900/30 border border-green-500/30" :
+                              index === 1 ? "bg-blue-900/30 border border-blue-500/30" : 
+                              "bg-purple-900/30 border border-purple-500/30"
+                            }`}>
+                              <Target className={`h-5 w-5 ${
+                                index === 0 ? "text-green-400" :
+                                index === 1 ? "text-blue-400" : "text-purple-400"
+                              }`} />
+                            </div>
+                            <h3 className="text-lg font-semibold text-white">{opportunity.category}</h3>
+                            {index === 0 && (
+                              <Badge className="bg-green-900/60 text-green-300 border border-green-500/50">
+                                Recommended
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <p className="text-sm text-gray-300 mt-1 mb-3">{opportunity.description}</p>
+                          
+                          <div className="bg-slate-800/50 p-4 rounded-lg border border-gray-700/50 my-3">
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <p className="text-xs text-gray-400">Potential</p>
+                                <div className="flex items-center gap-1 mt-1">
+                                  <DollarSign className="h-3 w-3 text-green-400" />
+                                  <span className="font-medium text-green-300">{opportunity.potential}</span>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-400">Market Demand</p>
+                                <Badge 
+                                  className={
+                                    opportunity.demand === "High" 
+                                      ? "bg-blue-900/60 text-blue-300 border border-blue-500/50 mt-1" 
+                                      : "bg-purple-900/60 text-purple-300 border border-purple-500/50 mt-1"
+                                  }
+                                >
+                                  {opportunity.demand}
+                                </Badge>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-400">Difficulty</p>
+                                <Badge 
+                                  className={
+                                    opportunity.difficulty === "Easy" 
+                                      ? "bg-green-900/60 text-green-300 border border-green-500/50 mt-1" 
+                                      : opportunity.difficulty === "Medium"
+                                        ? "bg-orange-900/60 text-orange-300 border border-orange-500/50 mt-1"
+                                        : "bg-red-900/60 text-red-300 border border-red-500/50 mt-1"
+                                  }
+                                >
+                                  {opportunity.difficulty}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                          <GlowButton 
+                            onClick={() => onActOnTip(opportunity.category.toLowerCase())}
+                            glowColor={
+                              index === 0 ? "green" : 
+                              index === 1 ? "blue" : "purple"
+                            }
+                          >
+                            View Strategy
+                          </GlowButton>
+                          <GlowButton 
+                            variant="outline" 
+                            onClick={() => onActOnTip(opportunity.category.toLowerCase())}
+                            glowColor={
+                              index === 0 ? "green" : 
+                              index === 1 ? "blue" : "purple"
+                            }
+                            className="border-gray-700 text-white hover:text-blue-300"
+                          >
+                            Find Leads
+                          </GlowButton>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </GlowCard>
                 ))}
+              </div>
+            </div>
+          </TabsContent>{/* Goals Tab */}
+          <TabsContent value="goals">
+            <GlowCard className="mb-6" glowColor="purple">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Target className="h-5 w-5 text-purple-400" />
+                  Weekly Achievement Goals
+                </CardTitle>
+                <CardDescription className="text-gray-300">
+                  Track your progress and earn rewards by completing strategic tasks
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-300 mb-6">
+                  Complete these tasks to boost your performance metrics and unlock special rewards. 
+                  Your progress is automatically tracked and updated daily.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-center">
+                  <div className="bg-gradient-to-b from-purple-900/40 to-indigo-900/40 p-4 rounded-lg border border-purple-500/30">
+                    <p className="text-gray-300 text-xs mb-2">Current Score</p>
+                    <p className="text-2xl font-bold text-purple-300">76/100</p>
+                  </div>
+                  <div className="bg-gradient-to-b from-blue-900/40 to-cyan-900/40 p-4 rounded-lg border border-blue-500/30">
+                    <p className="text-gray-300 text-xs mb-2">Tasks Completed</p>
+                    <p className="text-2xl font-bold text-blue-300">2/5</p>
+                  </div>
+                  <div className="bg-gradient-to-b from-green-900/40 to-emerald-900/40 p-4 rounded-lg border border-green-500/30">
+                    <p className="text-gray-300 text-xs mb-2">Rewards Earned</p>
+                    <p className="text-2xl font-bold text-green-300">₹500</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-6 mt-6">
+                  {weeklyGoals.map((goal, index) => (
+                    <div key={index} className="bg-gradient-to-r from-slate-900/50 to-gray-900/50 p-4 rounded-lg border border-gray-700/50">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            goal.status === "completed" ? "bg-green-900/30 border border-green-500/30" : 
+                            "bg-blue-900/30 border border-blue-500/30"
+                          }`}>
+                            {goal.status === "completed" ? 
+                              <CheckCircle className="h-5 w-5 text-green-400" /> :
+                              <Calendar className="h-5 w-5 text-blue-400" />
+                            }
+                          </div>
+                          <span className="font-medium text-white">{goal.goal}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            className={goal.status === "completed" 
+                              ? "bg-green-900/60 text-green-300 border border-green-500/50" 
+                              : "bg-blue-900/60 text-blue-300 border border-blue-500/50"}
+                          >
+                            {goal.status === "completed" ? "✓ Completed" : "In Progress"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Progress 
+                        value={goal.progress} 
+                        className={`h-2 mb-2 ${
+                          goal.status === "completed" ? "bg-green-950/50" : "bg-blue-950/50"
+                        }`} 
+                      />
+                      <div className="flex justify-between text-sm text-gray-400 mt-2">
+                        <span>{goal.progress}% complete</span>
+                        <div className="flex items-center gap-1">
+                          <Award className="h-3 w-3 text-amber-400" />
+                          <span className="text-amber-300">{goal.reward}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <GlowButton className="w-full mt-4" glowColor="purple">
+                    View All Achievement Goals
+                  </GlowButton>
+                </div>
               </CardContent>
-            </Card>
+            </GlowCard>
           </TabsContent>
         </Tabs>
       </div>

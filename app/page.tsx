@@ -125,7 +125,15 @@ export default function Page() {
         />
       )
     case "growth-playbook":
-      return <GrowthPlaybook onBack={handleBackToHome} />
+      return <GrowthPlaybook 
+               gpId="gp_001" 
+               onBack={handleBackToHome} 
+               onActOnTip={(tipType: string) => {
+                 console.log("Acting on tip:", tipType);
+                 // Navigate to lead-details with filter based on the tip type
+                 handleNavigation("home", { activeFilter: tipType });
+               }} 
+             />
     case "quiz":
       return (
         <QuizScreen
