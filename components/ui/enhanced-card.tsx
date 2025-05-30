@@ -103,7 +103,14 @@ export function EnhancedCard({
               "linear-gradient(45deg, rgba(139,92,246,0.2), rgba(6,182,212,0.2), rgba(59,130,246,0.2))",
             ],
           }}
-          transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY }}
+          transition={{ 
+            background: { // Explicitly set transition for background
+              type: "tween", 
+              duration: 3, 
+              repeat: Infinity, 
+              ease: "linear" 
+            }
+          }}
         />
       )}
 
