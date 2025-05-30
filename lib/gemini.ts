@@ -3,7 +3,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 const API_KEY = "AIzaSyBUreDq4nkfHM9oycP_WzJYKhYAEU0_YFY"
 const genAI = new GoogleGenerativeAI(API_KEY)
 
-export const geminiModel = genAI.getGenerativeModel({ model: "gemini-pro" })
+// Change from "gemini-pro" to "gemini-1.5-flash" for free version
+export const geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
 export async function generateTrainingContent(topic: string, skillLevel: string) {
   const prompt = `Create a personalized training module for a GroMo Partner on "${topic}" for ${skillLevel} level. Include:
@@ -38,16 +39,55 @@ export async function generateLeadMessage(customerName: string, product: string,
   }
 }
 
-export async function generateSalesPrompt(customerMessage: string, product: string) {
-  const prompt = `A customer said: "${customerMessage}" about ${product}. 
-  Provide a helpful response suggestion for the GroMo Partner. Keep it professional and persuasive.`
+export async function generateSalesPrompt(customerMessage: string, product: string, context?: string) {
+  const prompt = `You are a helpful sales assistant for GroMo Partners selling ${product}.
+  
+  Customer message: "${customerMessage}"
+  ${context ? `Context: ${context}` : ''}
+  
+  Generate a professional, empathetic, and persuasive response that:
+  1. Acknowledges the customer's concern/interest
+  2. Provides helpful information
+  3. Moves the conversation forward
+  4. Maintains a friendly tone
+  
+  Keep the response under 100 words and make it conversational.`
 
   try {
     const result = await geminiModel.generateContent(prompt)
-    return result.response.text()
+    const response = result.response.text()
+    
+    // Clean up the response (remove quotes, extra formatting)
+    return response.replace(/^["']|["']$/g, '').trim()
   } catch (error) {
     console.error("Error generating sales prompt:", error)
     return "I understand your concern. Let me provide you with more details that might help."
+  }
+}
+
+// New function for generating multiple suggestions at once
+export async function generateMultipleSalesPrompts(customerMessage: string, product: string, count: number = 3) {
+  const prompts = [
+    `Customer says: "${customerMessage}" about ${product}. Provide a direct helpful response.`,
+    `Customer says: "${customerMessage}" about ${product}. Ask a follow-up question to understand their needs better.`,
+    `Customer says: "${customerMessage}" about ${product}. Suggest concrete next steps they can take.`,
+  ]
+
+  try {
+    const results = await Promise.all(
+      prompts.slice(0, count).map(prompt => geminiModel.generateContent(prompt))
+    )
+    
+    return results.map(result => 
+      result.response.text().replace(/^["']|["']$/g, '').trim()
+    )
+  } catch (error) {
+    console.error("Error generating multiple sales prompts:", error)
+    return [
+      "I understand your concern. Let me provide you with more details.",
+      "Would you like to schedule a call to discuss this further?",
+      "Let me explain the benefits that would be most relevant to you.",
+    ]
   }
 }
 
