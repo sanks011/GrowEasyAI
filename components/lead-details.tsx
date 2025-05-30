@@ -83,29 +83,48 @@ export function LeadDetails({ lead, onBack, onStartChat }: LeadDetailsProps) {
     }
   }
 
-  const formatLastContact = (date: Date | string | undefined) => {
+  /**
+   * Format the last contact date into a human-readable string
+   * Handles multiple date formats:
+   * - JavaScript Date objects
+   * - ISO string dates
+   * - Firestore Timestamp objects
+   */
+  const formatLastContact = (date: any): string => {
     if (!date) return "Never"
     
-    // Convert to Date object if it's a string or other type
+    // Convert to Date object from different possible formats
     let contactDate: Date
-    if (date instanceof Date) {
-      contactDate = date
-    } else {
-      contactDate = new Date(date)
+    
+    try {
+      if (date instanceof Date) {
+        contactDate = date
+      } else if (date && typeof date.toDate === 'function') {
+        // Handle Firestore timestamp objects
+        contactDate = date.toDate()
+      } else if (typeof date === 'string' || typeof date === 'number') {
+        contactDate = new Date(date)
+      } else {
+        contactDate = new Date(date)
+      }
+      
       // Check if the date is valid
       if (isNaN(contactDate.getTime())) {
         return "Never"
       }
+      
+      const now = new Date()
+      const diffTime = Math.abs(now.getTime() - contactDate.getTime())
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      
+      if (diffDays === 0) return "Today"
+      if (diffDays === 1) return "Yesterday"
+      if (diffDays < 7) return `${diffDays} days ago`
+      return contactDate.toLocaleDateString()
+    } catch (error) {
+      console.error("Error formatting date:", error)
+      return "Never"
     }
-    
-    const now = new Date()
-    const diffTime = Math.abs(now.getTime() - contactDate.getTime())
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 0) return "Today"
-    if (diffDays === 1) return "Yesterday"
-    if (diffDays < 7) return `${diffDays} days ago`
-    return contactDate.toLocaleDateString()
   }
 
   const containerVariants = {

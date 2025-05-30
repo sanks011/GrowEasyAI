@@ -112,7 +112,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           score: lead.score,
           location: lead.location,
           status: lead.status,
-          lastContact: formatLastContact(lead.lastContact),
+          lastContact: lead.lastContact, // Store the original date/string, not the formatted string
           value: lead.income || 50000,
           phone: lead.phone,
           email: `${lead.name.toLowerCase().replace(' ', '.')}@email.com`
@@ -168,18 +168,49 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     loadData()
   }, [])
 
-  const formatLastContact = (date: any) => {
+  /**
+   * Format the last contact date into a human-readable string
+   * Handles multiple date formats:
+   * - JavaScript Date objects
+   * - ISO string dates
+   * - Firestore Timestamp objects
+   */
+  const formatLastContact = (date: any): string => {
     if (!date) return "Never"
-    const now = new Date()
-    const contactDate = date.toDate ? date.toDate() : new Date(date)
-    const diffMs = now.getTime() - contactDate.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffHours / 24)
     
-    if (diffHours < 1) return "Just now"
-    if (diffHours < 24) return `${diffHours} hours ago`
-    if (diffDays === 1) return "1 day ago"
-    return `${diffDays} days ago`
+    // Convert to Date object from different possible formats
+    let contactDate: Date
+    
+    try {
+      if (date instanceof Date) {
+        contactDate = date
+      } else if (date && typeof date.toDate === 'function') {
+        // Handle Firestore timestamp objects
+        contactDate = date.toDate()
+      } else if (typeof date === 'string' || typeof date === 'number') {
+        contactDate = new Date(date)
+      } else {
+        contactDate = new Date(date)
+      }
+      
+      // Check if the date is valid
+      if (isNaN(contactDate.getTime())) {
+        return "Never"
+      }
+      
+      const now = new Date()
+      const diffMs = now.getTime() - contactDate.getTime()
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      const diffDays = Math.floor(diffHours / 24)
+      
+      if (diffHours < 1) return "Just now"
+      if (diffHours < 24) return `${diffHours} hours ago`
+      if (diffDays === 1) return "1 day ago"
+      return `${diffDays} days ago`
+    } catch (error) {
+      console.error("Error formatting date:", error)
+      return "Never"
+    }
   }
 
   const quickStats = [
@@ -663,7 +694,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                           <div className="text-sm text-emerald-400 font-medium">
                             Value: ₹{lead.value.toLocaleString()}
                           </div>
-                          <div className="text-xs text-gray-400">{typeof lead.lastContact === 'string' ? lead.lastContact : formatLastContact(lead.lastContact)}</div>
+                          <div className="text-xs text-gray-400">{formatLastContact(lead.lastContact)}</div>
                         </div>
 
                         <div className="flex items-center space-x-2 pt-2 border-t border-slate-700/30">
