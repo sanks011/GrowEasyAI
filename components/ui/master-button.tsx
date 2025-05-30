@@ -85,7 +85,18 @@ export function MasterButton({
       whileTap={!disabled ? { scale: 0.98 } : {}}
       onClick={onClick}
       disabled={disabled || loading}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      transition={
+        pulse
+          ? { 
+              boxShadow: { 
+                type: "tween", 
+                duration: 2, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }
+            }
+          : { type: "spring", stiffness: 400, damping: 25 }
+      }
       animate={
         pulse
           ? {
@@ -174,7 +185,14 @@ export function MasterButton({
             "inset 0 0 20px rgba(255,255,255,0.05)",
           ],
         }}
-        transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY }}
+        transition={{ 
+          boxShadow: { 
+            type: "tween", 
+            duration: 3, 
+            repeat: Infinity, 
+            ease: "easeInOut" 
+          }
+        }}
       />
 
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon && <span className="flex-shrink-0">{icon}</span>}

@@ -8,8 +8,7 @@ import { CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Send, Bot, User, Lightbulb, CheckCircle } from "lucide-react"
-import { generateSalesPrompt } from "@/lib/gemini"
-import { saveChatMessage } from "@/lib/firebase"
+import { generateSalesPrompt, generateMultipleSalesPrompts } from "@/lib/gemini"
 
 interface Message {
   id: string
@@ -31,7 +30,9 @@ export function SalesCopilot({ lead, initialMessage, onBack }: SalesCopilotProps
   const [loading, setLoading] = useState(false)
   const [saleConfirmed, setSaleConfirmed] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const chatId = `chat_${lead.id}_${Date.now()}`
+  
+  // Use optional chaining with fallback
+  const chatId = `chat_${lead?.id || 'unknown'}_${Date.now()}`
 
   const useSuggestion = (suggestion: string) => {
     sendMessage(suggestion)
@@ -64,12 +65,12 @@ export function SalesCopilot({ lead, initialMessage, onBack }: SalesCopilotProps
   const generateAISuggestions = async (customerMessage: string) => {
     setLoading(true)
     try {
-      const suggestion = await generateSalesPrompt(customerMessage, lead.product)
-      setAiSuggestions([
-        suggestion,
-        "I understand your concern. Let me provide you with more details.",
-        "Would you like to schedule a call to discuss this further?",
-      ])
+      const suggestions = await generateMultipleSalesPrompts(
+        customerMessage, 
+        lead?.product || 'product', 
+        3
+      )
+      setAiSuggestions(suggestions)
     } catch (error) {
       console.error("Error generating AI suggestions:", error)
       setAiSuggestions([
@@ -90,14 +91,21 @@ export function SalesCopilot({ lead, initialMessage, onBack }: SalesCopilotProps
       timestamp: Date.now(),
     }
 
-    setMessages((prev) => [...prev, newMessage])
-
-    // Save to Firebase
-    saveChatMessage(chatId, newMessage)
+    setMessages((prev) => {
+      const updatedMessages = [...prev, newMessage]
+      
+      // Save to localStorage instead of Firebase
+      try {
+        localStorage.setItem(chatId, JSON.stringify(updatedMessages))
+      } catch (error) {
+        console.error("Failed to save to localStorage:", error)
+      }
+      
+      return updatedMessages
+    })
 
     if (sender === "user") {
       setInputMessage("")
-      // Simulate customer response after user message
       setTimeout(() => {
         const responses = [
           "That sounds good. What about the claim process?",
@@ -148,7 +156,7 @@ export function SalesCopilot({ lead, initialMessage, onBack }: SalesCopilotProps
           </GlowButton>
           <div className="flex-1">
             <h1 className="text-lg font-semibold text-white">Sales Co-Pilot</h1>
-            <p className="text-sm text-gray-300">Chatting with {lead.name}</p>
+            <p className="text-sm text-gray-300">Chatting with {lead?.name || 'Unknown Lead'}</p>
           </div>
           {saleConfirmed && (
             <Badge className="bg-green-500/20 text-green-300 border-green-400/30">
@@ -195,26 +203,35 @@ export function SalesCopilot({ lead, initialMessage, onBack }: SalesCopilotProps
       </div>
 
       {/* AI Suggestions */}
-      {aiSuggestions.length > 0 && !saleConfirmed && (
+      {!saleConfirmed && (
         <div className="max-w-md mx-auto w-full p-4 border-t border-slate-700">
           <div className="mb-3">
             <div className="flex items-center text-sm text-gray-300 mb-2">
               <Lightbulb className="h-4 w-4 mr-1 text-yellow-400" />
               AI Suggestions
+              {loading && <span className="ml-2 text-xs text-gray-400">Generating...</span>}
             </div>
             <div className="space-y-2">
-              {aiSuggestions.map((suggestion, index) => (
-                <GlowCard
-                  key={index}
-                  glowColor="purple"
-                  onClick={() => useSuggestion(suggestion)}
-                  className="cursor-pointer"
-                >
-                  <CardContent className="p-3">
-                    <p className="text-sm text-gray-200">{suggestion}</p>
-                  </CardContent>
-                </GlowCard>
-              ))}
+              {loading ? (
+                <div className="animate-pulse space-y-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-12 bg-slate-700/50 rounded-lg"></div>
+                  ))}
+                </div>
+              ) : (
+                aiSuggestions.map((suggestion, index) => (
+                  <GlowCard
+                    key={index}
+                    glowColor="purple"
+                    onClick={() => useSuggestion(suggestion)}
+                    className="cursor-pointer"
+                  >
+                    <CardContent className="p-3">
+                      <p className="text-sm text-gray-200">{suggestion}</p>
+                    </CardContent>
+                  </GlowCard>
+                ))
+              )}
             </div>
           </div>
         </div>
