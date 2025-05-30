@@ -14,13 +14,13 @@ interface GlowCardProps {
 
 export function GlowCard({ children, className = "", glowColor = "blue", onClick, disabled = false }: GlowCardProps) {
   const glowVariants = {
-    initial: { opacity: 0, scale: 0.8 },
+    initial: { opacity: 0, scale: 1 },
     hover: {
-      opacity: 1,
-      scale: 1.05,
+      opacity: 0.6,
+      scale: 1.01,
       transition: {
-        duration: 0.3,
-        ease: [0.4, 0, 0.2, 1],
+        duration: 0.2,
+        ease: "easeOut",
       },
     },
   }

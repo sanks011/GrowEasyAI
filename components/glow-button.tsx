@@ -26,11 +26,11 @@ export function GlowButton({
   const glowVariants = {
     initial: { opacity: 0, scale: 1 },
     hover: {
-      opacity: 1,
-      scale: 1.05,
+      opacity: 0.8,
+      scale: 1.02,
       transition: {
-        duration: 0.2,
-        ease: [0.4, 0, 0.2, 1],
+        duration: 0.15,
+        ease: "easeOut",
       },
     },
   }
@@ -51,7 +51,7 @@ export function GlowButton({
       className="relative"
       initial="initial"
       whileHover={!disabled ? "hover" : "initial"}
-      whileTap={!disabled ? { scale: 0.95 } : {}}
+      whileTap={!disabled ? { scale: 0.98 } : {}}
     >
       <motion.div
         className="absolute -inset-1 rounded-lg z-0 pointer-events-none blur-sm"

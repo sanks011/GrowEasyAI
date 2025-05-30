@@ -8,122 +8,54 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Play, BookOpen, Award, Clock, CheckCircle, X } from "lucide-react"
-import { generateQuizQuestion } from "@/lib/gemini"
+import { getTrainingModules } from "@/lib/firebase"
 
 interface Module {
   id: string
   title: string
-  type: "video" | "quiz" | "article"
-  duration: string
-  completed: boolean
+  description: string
+  type: "video" | "quiz" | "interactive" | "practical"
+  duration: number
   difficulty: "beginner" | "intermediate" | "advanced"
   category: string
-}
-
-interface QuizQuestion {
-  question: string
-  options: string[]
-  correctAnswer: string
-  explanation: string
+  completionRate: number
+  averageScore: number
+  content: any
 }
 
 interface LearningHubProps {
   onBack: () => void
+  onNavigate?: (screen: string, data?: any) => void
 }
 
-export function LearningHub({ onBack }: LearningHubProps) {
+export function LearningHub({ onBack, onNavigate }: LearningHubProps) {
   const [modules, setModules] = useState<Module[]>([])
-  const [currentQuiz, setCurrentQuiz] = useState<QuizQuestion | null>(null)
-  const [selectedAnswer, setSelectedAnswer] = useState<string>("")
-  const [showResult, setShowResult] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [overallProgress, setOverallProgress] = useState(65)
+  const [loading, setLoading] = useState(true)
+  const [overallProgress, setOverallProgress] = useState(0)
 
   useEffect(() => {
-    // Initialize modules
-    setModules([
-      {
-        id: "1",
-        title: "Credit Card Sales Mastery",
-        type: "quiz",
-        duration: "3 min",
-        completed: true,
-        difficulty: "intermediate",
-        category: "Credit Cards",
-      },
-      {
-        id: "2",
-        title: "Health Insurance Objection Handling",
-        type: "video",
-        duration: "5 min",
-        completed: false,
-        difficulty: "beginner",
-        category: "Health Insurance",
-      },
-      {
-        id: "3",
-        title: "Personal Loan Customer Profiling",
-        type: "article",
-        duration: "4 min",
-        completed: false,
-        difficulty: "advanced",
-        category: "Personal Loans",
-      },
-      {
-        id: "4",
-        title: "Digital Payment Solutions",
-        type: "quiz",
-        duration: "2 min",
-        completed: true,
-        difficulty: "beginner",
-        category: "Digital Payments",
-      },
-    ])
+    loadModules()
   }, [])
 
-  const startQuiz = async (moduleTitle: string) => {
-    setLoading(true)
+  const loadModules = async () => {
     try {
-      const question = await generateQuizQuestion(moduleTitle)
-      setCurrentQuiz(question)
-      setSelectedAnswer("")
-      setShowResult(false)
+      const fetchedModules = await getTrainingModules("gp_001")
+      setModules(fetchedModules)
+      
+      // Calculate overall progress based on completion rates
+      const avgCompletion = fetchedModules.reduce((sum: number, module: Module) => 
+        sum + module.completionRate, 0) / fetchedModules.length
+      setOverallProgress(Math.round(avgCompletion * 100))
     } catch (error) {
-      console.error("Error generating quiz:", error)
-      // Fallback question
-      setCurrentQuiz({
-        question: "What is the most important factor when selling insurance?",
-        options: ["A) Price", "B) Customer needs", "C) Commission", "D) Brand name"],
-        correctAnswer: "B",
-        explanation: "Understanding customer needs helps provide the right solution and builds trust.",
-      })
+      console.error("Error loading modules:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  const submitAnswer = () => {
-    setShowResult(true)
-    if (selectedAnswer === currentQuiz?.correctAnswer) {
-      // Update progress
-      setOverallProgress((prev) => Math.min(prev + 5, 100))
-    }
-  }
-
-  const closeQuiz = () => {
-    setCurrentQuiz(null)
-    setSelectedAnswer("")
-    setShowResult(false)
-    // Mark module as completed
-    if (currentQuiz) {
-      setModules((prev) =>
-        prev.map((module) =>
-          module.title.includes("Credit Card") || module.title.includes("Health Insurance")
-            ? { ...module, completed: true }
-            : module,
-        ),
-      )
-    }
+  const startModule = (module: Module) => {
+    // Navigate to the quiz screen with module data
+    onNavigate?.("quiz", { module })
   }
 
   const getDifficultyColor = (difficulty: string) => {
@@ -145,43 +77,54 @@ export function LearningHub({ onBack }: LearningHubProps) {
         return <Play className="h-4 w-4" />
       case "quiz":
         return <BookOpen className="h-4 w-4" />
-      case "article":
+      case "interactive":
+        return <BookOpen className="h-4 w-4" />
+      case "practical":
         return <BookOpen className="h-4 w-4" />
       default:
         return <BookOpen className="h-4 w-4" />
     }
   }
-
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
+        staggerChildren: 0.05,
+        delayChildren: 0.1,
       },
     },
   }
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 10 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.5,
-        ease: [0.4, 0, 0.2, 1],
+        duration: 0.3,
+        ease: "easeOut",
       },
     },
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-400 mx-auto mb-4"></div>
+          <p className="text-gray-300">Loading modules...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
-      {/* Animated background */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">      {/* Subtle background */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -inset-10 opacity-10">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
-          <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
+        <div className="absolute -inset-10 opacity-5">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500 rounded-full mix-blend-multiply filter blur-xl"></div>
+          <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl"></div>
         </div>
       </div>
 
@@ -220,19 +163,9 @@ export function LearningHub({ onBack }: LearningHubProps) {
                   <span className="text-orange-400 font-medium">{overallProgress}%</span>
                 </div>
                 <Progress value={overallProgress} className="h-2" />
-                <div className="grid grid-cols-3 gap-4 text-center text-sm">
-                  <div>
-                    <div className="text-green-400 font-bold">2</div>
-                    <div className="text-gray-400">Completed</div>
-                  </div>
-                  <div>
-                    <div className="text-orange-400 font-bold">2</div>
-                    <div className="text-gray-400">In Progress</div>
-                  </div>
-                  <div>
-                    <div className="text-blue-400 font-bold">4</div>
-                    <div className="text-gray-400">Total</div>
-                  </div>
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>{modules.filter(m => m.completionRate > 0.8).length} completed</span>
+                  <span>{modules.length} total modules</span>
                 </div>
               </div>
             </CardContent>
@@ -240,169 +173,81 @@ export function LearningHub({ onBack }: LearningHubProps) {
         </motion.div>
 
         {/* Learning Modules */}
-        <motion.div variants={itemVariants}>
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-white mb-4">Recommended for You</h2>
-            {modules.map((module, index) => (
-              <motion.div key={module.id} variants={itemVariants} custom={index}>
-                <GlowCard
-                  glowColor={module.completed ? "green" : getDifficultyColor(module.difficulty)}
-                  onClick={() => !module.completed && module.type === "quiz" && startQuiz(module.title)}
-                  className={!module.completed && module.type === "quiz" ? "cursor-pointer" : ""}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <div className={`p-2 rounded-lg bg-${getDifficultyColor(module.difficulty)}-500/20`}>
-                          <div className={`text-${getDifficultyColor(module.difficulty)}-400`}>
-                            {getTypeIcon(module.type)}
-                          </div>
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-white">{module.title}</h3>
-                          <div className="flex items-center space-x-2 text-sm text-gray-300">
-                            <Clock className="h-3 w-3" />
-                            <span>{module.duration}</span>
-                            <span>•</span>
-                            <span className="capitalize">{module.type}</span>
-                          </div>
-                        </div>
+        <motion.div variants={itemVariants} className="space-y-4">
+          <h3 className="text-lg font-semibold text-white mb-4">Available Modules</h3>
+          {modules.map((module) => (
+            <motion.div key={module.id} variants={itemVariants}>
+              <GlowCard glowColor="blue" className="hover:glow-blue-400">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {getTypeIcon(module.type)}
+                        <h4 className="font-semibold text-white">{module.title}</h4>
+                        {module.completionRate > 0.8 && (
+                          <CheckCircle className="h-4 w-4 text-green-400" />
+                        )}
                       </div>
-                      {module.completed && <CheckCircle className="h-5 w-5 text-green-400" />}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex space-x-2">
-                        <Badge
-                          className={`bg-${getDifficultyColor(module.difficulty)}-500/20 text-${getDifficultyColor(module.difficulty)}-300 border-${getDifficultyColor(module.difficulty)}-400/30 text-xs`}
-                        >
+                      <p className="text-gray-300 text-sm mb-3">{module.description}</p>
+                      
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge variant="outline" className={`text-${getDifficultyColor(module.difficulty)}-400 border-${getDifficultyColor(module.difficulty)}-400`}>
                           {module.difficulty}
                         </Badge>
-                        <Badge variant="outline" className="text-xs border-gray-600 text-gray-300">
-                          {module.category}
-                        </Badge>
+                        <div className="flex items-center text-gray-400 text-xs">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {module.duration} min
+                        </div>
+                        <div className="text-gray-400 text-xs">
+                          {Math.round(module.completionRate * 100)}% completed
+                        </div>
                       </div>
 
-                      {!module.completed && module.type === "quiz" && (
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-gray-400">
+                          Category: {module.category}
+                        </div>
                         <GlowButton
                           size="sm"
-                          glowColor={getDifficultyColor(module.difficulty)}
-                          onClick={() => startQuiz(module.title)}
-                          className={`bg-${getDifficultyColor(module.difficulty)}-600 hover:bg-${getDifficultyColor(module.difficulty)}-700`}
+                          glowColor="orange"
+                          onClick={() => startModule(module)}
                         >
-                          Start
+                          {module.completionRate > 0.8 ? "Review" : "Start"}
                         </GlowButton>
-                      )}
+                      </div>
                     </div>
-                  </CardContent>
-                </GlowCard>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </motion.div>
-
-      {/* Quiz Modal */}
-      <AnimatePresence>
-        {currentQuiz && (
-          <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="w-full max-w-md"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-            >
-              <GlowCard glowColor="blue">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg text-white">Quiz Question</CardTitle>
-                    <GlowButton variant="ghost" size="sm" onClick={closeQuiz} glowColor="red">
-                      <X className="h-4 w-4" />
-                    </GlowButton>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-gray-200">{currentQuiz.question}</p>
-
-                  <div className="space-y-2">
-                    {currentQuiz.options.map((option, index) => (
-                      <GlowCard
-                        key={index}
-                        glowColor={
-                          showResult
-                            ? option.charAt(0) === currentQuiz.correctAnswer
-                              ? "green"
-                              : option.charAt(0) === selectedAnswer
-                                ? "red"
-                                : "blue"
-                            : selectedAnswer === option.charAt(0)
-                              ? "blue"
-                              : "purple"
-                        }
-                        onClick={() => !showResult && setSelectedAnswer(option.charAt(0))}
-                        className={!showResult ? "cursor-pointer" : ""}
-                      >
-                        <CardContent className="p-3">
-                          <p className="text-sm text-gray-200">{option}</p>
-                        </CardContent>
-                      </GlowCard>
-                    ))}
-                  </div>
-
-                  {showResult && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-4 bg-blue-500/10 rounded-lg border border-blue-400/20"
-                    >
-                      <p className="text-sm text-gray-200 mb-2">
-                        <strong>Explanation:</strong> {currentQuiz.explanation}
-                      </p>
-                      {selectedAnswer === currentQuiz.correctAnswer ? (
-                        <Badge className="bg-green-500/20 text-green-300 border-green-400/30">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Correct!
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-red-500/20 text-red-300 border-red-400/30">
-                          <X className="h-3 w-3 mr-1" />
-                          Incorrect
-                        </Badge>
-                      )}
-                    </motion.div>
-                  )}
-
-                  <div className="flex space-x-2">
-                    {!showResult ? (
-                      <GlowButton
-                        onClick={submitAnswer}
-                        disabled={!selectedAnswer}
-                        glowColor="blue"
-                        className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      >
-                        Submit Answer
-                      </GlowButton>
-                    ) : (
-                      <GlowButton
-                        onClick={closeQuiz}
-                        glowColor="green"
-                        className="flex-1 bg-green-600 hover:bg-green-700"
-                      >
-                        Continue Learning
-                      </GlowButton>
-                    )}
                   </div>
                 </CardContent>
               </GlowCard>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          ))}
+        </motion.div>
+
+        {/* Learning Stats */}
+        <motion.div variants={itemVariants}>
+          <GlowCard glowColor="purple">
+            <CardHeader>
+              <CardTitle className="text-lg text-white">Learning Stats</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-400">
+                    {Math.round(modules.reduce((sum, m) => sum + m.averageScore, 0) / modules.length)}%
+                  </div>
+                  <div className="text-xs text-gray-300">Avg Score</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-400">
+                    {modules.reduce((sum, m) => sum + m.duration, 0)}
+                  </div>
+                  <div className="text-xs text-gray-300">Total Minutes</div>
+                </div>
+              </div>
+            </CardContent>
+          </GlowCard>
+        </motion.div>
+      </motion.div>
     </div>
   )
 }

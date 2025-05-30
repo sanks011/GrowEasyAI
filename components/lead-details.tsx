@@ -7,19 +7,25 @@ import { GlowCard } from "@/components/glow-card"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, MessageSquare, Phone, MapPin, Star, User, Calendar, Loader2 } from "lucide-react"
-import { generateLeadMessage } from "@/lib/gemini"
+import { ArrowLeft, MessageSquare, Phone, MapPin, Star, User, Calendar, Loader2, Briefcase, Users, Heart } from "lucide-react"
+import { generateAIPrompt, updateLeadStatus } from "@/lib/firebase"
 
 interface Lead {
   id: string
   name: string
-  product: string
-  score: number
-  location: string
   age?: number
-  income?: string
-  lastContact?: string
+  income?: number
+  location: string
+  occupation?: string
+  familySize?: number
   interests?: string[]
+  score: number
+  status: string
+  phone?: string
+  lastContact?: Date | string
+  assignedTo?: string
+  email?: string
+  address?: string
 }
 
 interface LeadDetailsProps {
@@ -32,38 +38,74 @@ export function LeadDetails({ lead, onBack, onStartChat }: LeadDetailsProps) {
   const [aiMessage, setAiMessage] = useState<string>("")
   const [loading, setLoading] = useState(false)
 
-  // Enhanced lead data
-  const enhancedLead = {
-    ...lead,
-    age: lead.age || 35,
-    income: lead.income || "₹8-12 LPA",
-    lastContact: lead.lastContact || "2 days ago",
-    interests: lead.interests || ["Family Protection", "Tax Savings", "Cashless Treatment"],
-  }
-
   useEffect(() => {
     generateAIMessage()
-  }, [])
+  }, [lead])
 
   const generateAIMessage = async () => {
     setLoading(true)
     try {
-      const message = await generateLeadMessage(enhancedLead.name, enhancedLead.product, enhancedLead.location)
-      setAiMessage(message)
+      // Use Firebase helper to generate personalized message
+      const message = generateAIPrompt(`interested in ${lead.interests?.[0] || 'insurance'}`, lead)
+      
+      // Generate a more personalized message based on lead data
+      const personalizedMessage = `Hi ${lead.name}! Hope you're doing well in ${lead.location}. As a ${lead.occupation || 'professional'}, I think you'd be interested in our ${lead.interests?.[0] || 'insurance'} plans that are perfect for families like yours. ${message} Would you like to know more?`
+      
+      setAiMessage(personalizedMessage)
     } catch (error) {
       console.error("Error generating AI message:", error)
       setAiMessage(
-        `Hi ${enhancedLead.name}! I hope you're doing well. I wanted to share some exciting ${enhancedLead.product} options that could be perfect for you and your family. Would you like to know more?`,
+        `Hi ${lead.name}! I hope you're doing well. I wanted to share some exciting ${lead.interests?.[0] || 'insurance'} options that could be perfect for you and your family. Would you like to know more?`,
       )
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (aiMessage) {
-      onStartChat(enhancedLead, aiMessage)
+      // Update lead status to contacted
+      await updateLeadStatus(lead.id, "contacted", "Initiated conversation via AI message")
+      onStartChat(lead, aiMessage)
     }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "hot":
+        return "bg-red-500/20 text-red-300 border-red-400/30"
+      case "warm":
+        return "bg-orange-500/20 text-orange-300 border-orange-400/30"
+      case "cold":
+        return "bg-blue-500/20 text-blue-300 border-blue-400/30"
+      default:
+        return "bg-gray-500/20 text-gray-300 border-gray-400/30"
+    }
+  }
+
+  const formatLastContact = (date: Date | string | undefined) => {
+    if (!date) return "Never"
+    
+    // Convert to Date object if it's a string or other type
+    let contactDate: Date
+    if (date instanceof Date) {
+      contactDate = date
+    } else {
+      contactDate = new Date(date)
+      // Check if the date is valid
+      if (isNaN(contactDate.getTime())) {
+        return "Never"
+      }
+    }
+    
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - contactDate.getTime())
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) return "Today"
+    if (diffDays === 1) return "Yesterday"
+    if (diffDays < 7) return `${diffDays} days ago`
+    return contactDate.toLocaleDateString()
   }
 
   const containerVariants = {
@@ -131,16 +173,16 @@ export function LeadDetails({ lead, onBack, onStartChat }: LeadDetailsProps) {
                     <User className="h-6 w-6 text-blue-400" />
                   </motion.div>
                   <div>
-                    <CardTitle className="text-xl text-white">{enhancedLead.name}</CardTitle>
+                    <CardTitle className="text-xl text-white">{lead.name}</CardTitle>
                     <CardDescription className="flex items-center text-gray-300">
                       <MapPin className="h-4 w-4 mr-1" />
-                      {enhancedLead.location}
+                      {lead.location}
                     </CardDescription>
                   </div>
                 </div>
-                <Badge className="bg-green-500/20 text-green-300 border-green-400/30">
+                <Badge className={getStatusColor(lead.status)}>
                   <Star className="h-3 w-3 mr-1 fill-current" />
-                  {enhancedLead.score}
+                  {lead.score}
                 </Badge>
               </div>
             </CardHeader>
@@ -148,28 +190,44 @@ export function LeadDetails({ lead, onBack, onStartChat }: LeadDetailsProps) {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="text-gray-400">Age</div>
-                  <div className="font-medium text-white">{enhancedLead.age} years</div>
+                  <div className="font-medium text-white">{lead.age || 'N/A'} years</div>
                 </div>
                 <div>
                   <div className="text-gray-400">Income</div>
-                  <div className="font-medium text-white">{enhancedLead.income}</div>
+                  <div className="font-medium text-white">₹{lead.income ? (lead.income / 1000).toFixed(0) + 'K' : 'N/A'}</div>
                 </div>
                 <div>
-                  <div className="text-gray-400">Product Interest</div>
-                  <div className="font-medium text-white">{enhancedLead.product}</div>
+                  <div className="text-gray-400 flex items-center">
+                    <Briefcase className="h-3 w-3 mr-1" />
+                    Occupation
+                  </div>
+                  <div className="font-medium text-white">{lead.occupation || 'Not specified'}</div>
                 </div>
                 <div>
+                  <div className="text-gray-400 flex items-center">
+                    <Users className="h-3 w-3 mr-1" />
+                    Family Size
+                  </div>
+                  <div className="font-medium text-white">{lead.familySize || 'N/A'} members</div>
+                </div>
+                <div className="col-span-2">
                   <div className="text-gray-400">Last Contact</div>
-                  <div className="font-medium text-white">{enhancedLead.lastContact}</div>
+                  <div className="font-medium text-white flex items-center">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {formatLastContact(lead.lastContact)}
+                  </div>
                 </div>
               </div>
 
               <Separator className="border-slate-600" />
 
               <div>
-                <div className="text-gray-400 text-sm mb-2">Interests</div>
+                <div className="text-gray-400 text-sm mb-2 flex items-center">
+                  <Heart className="h-3 w-3 mr-1" />
+                  Interests
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {enhancedLead.interests.map((interest, index) => (
+                  {(lead.interests || ['General Insurance']).map((interest, index) => (
                     <Badge key={index} className="bg-blue-500/20 text-blue-300 border-blue-400/30 text-xs">
                       {interest}
                     </Badge>

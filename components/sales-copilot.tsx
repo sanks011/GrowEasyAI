@@ -8,7 +8,7 @@ import { CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Send, Bot, User, Lightbulb, CheckCircle } from "lucide-react"
-import { generateSalesPrompt, generateMultipleSalesPrompts } from "@/lib/gemini"
+import { saveChatMessage, listenToChat, generateAIPrompt } from "@/lib/firebase"
 
 interface Message {
   id: string
@@ -29,16 +29,19 @@ export function SalesCopilot({ lead, initialMessage, onBack }: SalesCopilotProps
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [saleConfirmed, setSaleConfirmed] = useState(false)
+  const [initialized, setInitialized] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
-  // Use optional chaining with fallback
-  const chatId = `chat_${lead?.id || 'unknown'}_${Date.now()}`
-
+  // Use stable chatId with lead id fallback
+  const chatId = useRef(`chat_${lead?.id || 'unknown'}_${Date.now()}`).current
   const useSuggestion = (suggestion: string) => {
     sendMessage(suggestion)
   }
-
+  
   useEffect(() => {
+    // Only initialize once
+    if (initialized) return
+
     // Initialize chat with the lead message
     const initialMessages: Message[] = [
       {
@@ -49,40 +52,72 @@ export function SalesCopilot({ lead, initialMessage, onBack }: SalesCopilotProps
       },
       {
         id: "2",
-        text: "Hi! Thanks for reaching out. I'm interested but have some questions about the pricing.",
+        text: `Hi! Thanks for reaching out about ${lead?.interests?.[0] || 'your product'}. I'm interested but have some questions about the pricing and coverage.`,
         sender: "customer",
         timestamp: Date.now(),
       },
     ]
+    
     setMessages(initialMessages)
-    generateAISuggestions("I'm interested but have some questions about the pricing.")
-  }, [initialMessage])
+    setInitialized(true)
+    
+    // Try to save to Firebase, but don't block on failure
+    try {
+      initialMessages.forEach(msg => {
+        saveChatMessage(chatId, msg).catch(console.warn)
+      })
+      
+      // Listen to real-time chat updates if Firebase is available
+      const unsubscribe = listenToChat(chatId, (chatMessages) => {
+        setMessages(chatMessages)
+      })
+      
+      // Cleanup function
+      return () => {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe()
+        }
+      }
+    } catch (error) {
+      console.warn('Firebase not available, using local state only:', error)
+    }
+    
+    generateAISuggestions(`I'm interested in ${lead?.interests?.[0] || 'your product'} but have questions about pricing and coverage.`)
+  }, [initialized, initialMessage, lead])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
-
   const generateAISuggestions = async (customerMessage: string) => {
     setLoading(true)
     try {
-      const suggestions = await generateMultipleSalesPrompts(
-        customerMessage, 
-        lead?.product || 'product', 
-        3
-      )
+      // Use Firebase helper to generate contextual prompts
+      const prompt1 = generateAIPrompt(customerMessage, lead)
+      const prompt2 = generateAIPrompt(customerMessage, lead)
+      const prompt3 = generateAIPrompt(customerMessage, lead)
+      
+      // Generate context-aware suggestions based on lead profile
+      const suggestions = [
+        prompt1,
+        `Based on your ${lead?.occupation || 'profession'} and income level, I can show you plans that fit perfectly within your budget.`,
+        `Given your interest in ${lead?.interests?.[0] || 'this product'}, let me explain the specific benefits that matter most to you.`,
+        prompt2,
+        `For someone in ${lead?.location || 'your area'}, we have special network coverage and local benefits.`,
+        prompt3
+      ].slice(0, 3)
+      
       setAiSuggestions(suggestions)
     } catch (error) {
       console.error("Error generating AI suggestions:", error)
       setAiSuggestions([
-        "I understand your concern. Let me provide you with more details.",
+        "I understand your concern. Let me provide you with more details tailored to your needs.",
         "Would you like to schedule a call to discuss this further?",
-        "Let me explain the benefits that would be most relevant to you.",
-      ])
-    } finally {
+        "Let me explain the benefits that would be most relevant to your situation.",
+      ])    } finally {
       setLoading(false)
     }
   }
-
+  
   const sendMessage = (text: string, sender: "user" | "customer" = "user") => {
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -91,30 +126,48 @@ export function SalesCopilot({ lead, initialMessage, onBack }: SalesCopilotProps
       timestamp: Date.now(),
     }
 
-    setMessages((prev) => {
-      const updatedMessages = [...prev, newMessage]
-      
-      // Save to localStorage instead of Firebase
-      try {
-        localStorage.setItem(chatId, JSON.stringify(updatedMessages))
-      } catch (error) {
-        console.error("Failed to save to localStorage:", error)
-      }
-      
-      return updatedMessages
-    })
+    // Update local state immediately
+    setMessages(prev => [...prev, newMessage])
+
+    // Try to save to Firebase but don't block on failure
+    try {
+      saveChatMessage(chatId, newMessage).catch(console.warn)
+    } catch (error) {
+      console.warn('Firebase save failed, using local state only:', error)
+    }
 
     if (sender === "user") {
       setInputMessage("")
+      
+      // Generate realistic customer responses based on their profile
       setTimeout(() => {
         const responses = [
-          "That sounds good. What about the claim process?",
-          "I need to think about it. Can you send me more details?",
-          "Okay, I'm convinced. How do we proceed?",
-          "The price seems reasonable. What's the next step?",
+          `That sounds good. What about the claim process for someone like me in ${lead?.location || 'my area'}?`,
+          `I need to think about it. Can you send me more details about coverage?`,
+          `Okay, I'm convinced. How do we proceed with the application?`,
+          `The price seems reasonable for my ${lead?.familySize || ''}${lead?.familySize ? ' family members' : 'situation'}. What's the next step?`,
+          `I like what I'm hearing. When can we finalize this?`,
+          `This looks perfect for my needs. Let's move forward.`
         ]
         const randomResponse = responses[Math.floor(Math.random() * responses.length)]
-        sendMessage(randomResponse, "customer")
+        
+        const customerMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: randomResponse,
+          sender: "customer",
+          timestamp: Date.now() + 1,
+        }
+        
+        // Update local state immediately
+        setMessages(prev => [...prev, customerMessage])
+        
+        // Try to save to Firebase but don't block on failure
+        try {
+          saveChatMessage(chatId, customerMessage).catch(console.warn)
+        } catch (error) {
+          console.warn('Firebase save failed, using local state only:', error)
+        }
+        
         generateAISuggestions(randomResponse)
       }, 2000)
     }
